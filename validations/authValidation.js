@@ -16,7 +16,7 @@ const loginValidation = [
 ];
 
 const googleValidation = [
-    body("idToken").notEmpty().withMessage("Firebase ID token is required"),
+    body("idToken").trim().notEmpty().withMessage("Firebase ID token is required"),
 ];
 
 module.exports = {

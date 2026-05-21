@@ -3,7 +3,10 @@ const User = require("../models/User");
 const catchAsync = require("../utils/catchAsync");
 const sendResponse = require("../utils/sendResponse");
 const generateToken = require("../utils/generateToken");
-const initFirebaseAdmin = require("../config/firebaseAdmin");
+const {
+    initFirebaseAdmin,
+    getFirebaseAdminInitError,
+} = require("../config/firebaseAdmin");
 
 const sendDuplicateKeyError = (res, error) => {
     const duplicateField = Object.keys(error?.keyPattern || {})[0] || "field";
@@ -17,12 +20,16 @@ const sanitizeUser = (userDoc) => {
 };
 
 const setAuthCookie = (res, token) => {
-    res.cookie("token", token, {
+    const cookieOptions = {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
         sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
         maxAge: 7 * 24 * 60 * 60 * 1000,
-    });
+    };
+
+    // Keep both cookie names temporarily for backward compatibility.
+    res.cookie("token", token, cookieOptions);
+    res.cookie("iv_token", token, cookieOptions);
 };
 
 const register = catchAsync(async(req, res) => {
@@ -96,18 +103,43 @@ const googleLogin = catchAsync(async(req, res) => {
     const admin = initFirebaseAdmin();
 
     if (!admin) {
+        const firebaseInitError = getFirebaseAdminInitError();
         return sendResponse(
             res,
             500,
             false,
-            "Firebase admin not configured",
+            "Google authentication is unavailable",
             null,
-            "Set FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL and FIREBASE_PRIVATE_KEY"
+            firebaseInitError || "Check FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, and FIREBASE_PRIVATE_KEY configuration."
         );
     }
 
-    const decoded = await admin.auth().verifyIdToken(idToken);
+    let decoded;
+    try {
+        decoded = await admin.auth().verifyIdToken(idToken);
+    } catch (error) {
+        const tokenErrorCodes = new Set([
+            "auth/id-token-expired",
+            "auth/argument-error",
+            "auth/invalid-id-token",
+        ]);
+        const isTokenError = tokenErrorCodes.has(error?.code);
+
+        return sendResponse(
+            res,
+            isTokenError ? 401 : 500,
+            false,
+            isTokenError ? "Google session is invalid or expired. Please sign in again." : "Failed to verify Google session",
+            null,
+            process.env.NODE_ENV === "production" ? undefined : (error?.message || "Google token verification failed")
+        );
+    }
+
     const email = decoded.email;
+    if (!email) {
+        return sendResponse(res, 400, false, "Google account email not available");
+    }
+
     const name = decoded.name || email;
     const photoURL = decoded.picture || "";
 
@@ -153,11 +185,14 @@ const getMe = catchAsync(async(req, res) => {
 });
 
 const logout = catchAsync(async(req, res) => {
-    res.clearCookie("token", {
+    const clearOptions = {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
         sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-    });
+    };
+
+    res.clearCookie("token", clearOptions);
+    res.clearCookie("iv_token", clearOptions);
 
     return sendResponse(res, 200, true, "Logout successful");
 });

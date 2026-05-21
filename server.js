@@ -17,8 +17,14 @@ const notFound = require("./middlewares/notFound");
 const errorHandler = require("./middlewares/errorHandler");
 
 const app = express();
+const envClientUrls = (process.env.CLIENT_URLS || "")
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+
 const allowedOrigins = [
     process.env.CLIENT_URL,
+    ...envClientUrls,
     "http://localhost:3000",
     "http://localhost:3001",
     "http://localhost:3002",
@@ -27,11 +33,48 @@ const allowedOrigins = [
     "http://127.0.0.1:3002",
 ].filter(Boolean);
 
+const isLocalDevOrigin = (origin) => /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin);
+
+const validateStartupEnv = () => {
+    const requiredVars = ["MONGODB_URI", "JWT_SECRET"];
+    const missingVars = requiredVars.filter((name) => !process.env[name]);
+
+    if (missingVars.length > 0) {
+        throw new Error(`Missing required env vars: ${missingVars.join(", ")}`);
+    }
+
+    const firebaseVars = [
+        process.env.FIREBASE_PROJECT_ID,
+        process.env.FIREBASE_CLIENT_EMAIL,
+        process.env.FIREBASE_PRIVATE_KEY,
+    ];
+    const hasPartialFirebaseConfig = firebaseVars.some(Boolean) && !firebaseVars.every(Boolean);
+    if (hasPartialFirebaseConfig) {
+        console.warn("[startup] Partial Firebase env detected. Google auth may fail unless FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, and FIREBASE_PRIVATE_KEY are all provided.");
+    }
+
+    if (process.env.FIREBASE_PRIVATE_KEY) {
+        const normalizedPrivateKey = process.env.FIREBASE_PRIVATE_KEY.includes("\\n")
+            ? process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, "\n")
+            : process.env.FIREBASE_PRIVATE_KEY;
+        const hasPemMarkers = normalizedPrivateKey.includes("-----BEGIN PRIVATE KEY-----") &&
+            normalizedPrivateKey.includes("-----END PRIVATE KEY-----");
+
+        if (!hasPemMarkers) {
+            console.warn("[startup] FIREBASE_PRIVATE_KEY appears malformed. Include full PEM markers: -----BEGIN PRIVATE KEY----- and -----END PRIVATE KEY-----.");
+        }
+    }
+
+    if (process.env.NODE_ENV === "production" && process.env.JWT_SECRET === "yourStrongSecretKey") {
+        console.warn("[startup] JWT_SECRET appears to be a default placeholder. Rotate before production usage.");
+    }
+};
+
 app.use(helmet());
 app.use(
     cors({
         origin(origin, callback) {
-            if (!origin || allowedOrigins.includes(origin)) {
+            if (!origin || allowedOrigins.includes(origin) || isLocalDevOrigin(origin)) {
                 return callback(null, true);
             }
 
@@ -73,6 +116,7 @@ const PORT = process.env.PORT || 5000;
 
 const startServer = async() => {
     try {
+        validateStartupEnv();
         await connectDB();
         app.listen(PORT, () => {
             console.log(`Server running on port ${PORT}`);

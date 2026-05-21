@@ -86,9 +86,6 @@ const getHomeContent = catchAsync(async(req, res) => {
         whyItems,
         stories,
     };
-    
-    console.log("Backend sending heroSlides:", JSON.stringify(heroSlides[0]));
-    console.log("Backend full responseData:", JSON.stringify(responseData).substring(0, 500));
 
     return sendResponse(res, 200, true, "Home content fetched", responseData);
 });

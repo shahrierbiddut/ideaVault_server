@@ -6,7 +6,8 @@ const verifyToken = (req, res, next) => {
     const tokenFromHeader = authHeader.startsWith("Bearer ") ?
         authHeader.split(" ")[1] :
         null;
-    const token = tokenFromHeader || (req.cookies ? req.cookies.token : null);
+    const tokenFromCookie = req.cookies ? (req.cookies.token || req.cookies.iv_token) : null;
+    const token = tokenFromHeader || tokenFromCookie;
 
     if (!token) {
         return sendResponse(res, 401, false, "Unauthorized access", null, "Token missing");
