@@ -19,8 +19,16 @@ const googleValidation = [
     body("idToken").trim().notEmpty().withMessage("Firebase ID token is required"),
 ];
 
+const changePasswordValidation = [
+    body("currentPassword").notEmpty().withMessage("Current password is required"),
+    body("newPassword")
+        .matches(passwordRule)
+        .withMessage("Password must be at least 6 chars with uppercase and lowercase"),
+];
+
 module.exports = {
     registerValidation,
     loginValidation,
     googleValidation,
+    changePasswordValidation,
 };

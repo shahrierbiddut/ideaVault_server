@@ -18,6 +18,11 @@ const userSchema = new mongoose.Schema({
         type: String,
         default: "",
     },
+    bio: {
+        type: String,
+        default: "",
+        maxlength: 500,
+    },
     password: {
         type: String,
         default: null,
