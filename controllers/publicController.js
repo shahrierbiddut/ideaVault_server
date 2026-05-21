@@ -8,16 +8,25 @@ const heroSlides = [{
         id: 1,
         title: "Share Ideas. Inspire Innovation. Build the Future.",
         subtitle: "Discover startup concepts, collaborate with creators, and turn bold ideas into investable momentum.",
+        image: "/Assets/Skill-Based-Education.png",
+        label: "Idea Vault",
+        description: "Centralized hub for startup innovation",
     },
     {
         id: 2,
         title: "From Concept to Community Validation.",
         subtitle: "Publish your idea, gather intelligent feedback, and iterate with a serious founder network.",
+        image: "/Assets/smart-waste-tracker.webp",
+        label: "Live Signal",
+        description: "Real-time validation with community feedback",
     },
     {
         id: 3,
         title: "Where Builders Meet Their Next Breakthrough.",
         subtitle: "Track traction, spark conversations, and make your startup concept impossible to ignore.",
+        image: "/Assets/Urban-Farmer.webp",
+        label: "Innovation Radar",
+        description: "Trending concepts validated by real founder feedback",
     },
 ];
 
@@ -71,12 +80,17 @@ const getHomeContent = catchAsync(async(req, res) => {
         { label: "Categories", value: categories.length },
     ];
 
-    return sendResponse(res, 200, true, "Home content fetched", {
+    const responseData = {
         heroSlides,
         counters,
         whyItems,
         stories,
-    });
+    };
+    
+    console.log("Backend sending heroSlides:", JSON.stringify(heroSlides[0]));
+    console.log("Backend full responseData:", JSON.stringify(responseData).substring(0, 500));
+
+    return sendResponse(res, 200, true, "Home content fetched", responseData);
 });
 
 module.exports = { getHomeContent };
