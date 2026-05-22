@@ -1,10 +1,13 @@
 # IdeaVault Server
 
 Backend REST API for IdeaVault, a startup idea sharing platform.
+ node server start
+◇ injected env (9) from .env // tip: ⌘ suppress logs { quiet: true }
+Server running on port 5000
 
 ## Live URL
 
-- Backend API: add your deployed backend URL
+- Backend API: https://ideavaultclient.vercel.app/
 
 ## Core Features
 
